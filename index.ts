@@ -48,6 +48,6 @@ treb7uchet`;
     expect(example.split("\n").map(calibrationValue)).toEqual([12, 38, 15, 77]);
     expect(part1(example)).toEqual(142);
 
-    console.log(await fetchInput(1));
+    expect(part1(await fetchInput(1))).toBe(55108);
   });
 });
