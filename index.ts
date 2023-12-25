@@ -26,9 +26,15 @@ const mapLines =
   (text: string) =>
     splitLines(text).map(fn);
 
-const add = (a: number, b: number) => a + b;
+const overLines =
+  <R>(fn: (lines: string[]) => R) =>
+  (text: string) =>
+    fn(splitLines(text));
 
-const map = describe("Day 1", () => {
+const add = (a: number, b: number) => a + b;
+const { min, max } = Math;
+
+describe("Day 1", () => {
   const digitWords = [
     "one",
     "two",
@@ -52,34 +58,28 @@ const map = describe("Day 1", () => {
       dir == "left" ? s.startsWith(w, i) : s.endsWith(w, s.length - i)
     ) + 1;
 
-  const calibrationValue = (match: typeof matchDigit) => (line: string) => {
-    let left = 0;
-    let right = 0;
-    for (let i = 0; i < line.length; i++) {
-      left ||= match("left", line, i);
-      right ||= match("right", line, i);
-      if (left && right) return left * 10 + right;
-    }
-    throw "no match";
-  };
+  const calibrationValues = (match: typeof matchDigit) =>
+    mapLines((line: string) => {
+      let left = 0;
+      let right = 0;
+      for (let i = 0; i < line.length; i++) {
+        left ||= match("left", line, i);
+        right ||= match("right", line, i);
+        if (left && right) return left * 10 + right;
+      }
+      throw "no match";
+    });
 
-  test("*", async () => {
-    const example = `
+  test("**", async () => {
+    const example1 = `
 1abc2
 pqr3stu8vwx
 a1b2c3d4e5f
 treb7uchet`;
 
-    const part1 = mapLines(calibrationValue(matchDigit));
+    expect(calibrationValues(matchDigit)(example1)).toEqual([12, 38, 15, 77]);
 
-    expect(part1(example)).toEqual([12, 38, 15, 77]);
-    expect(part1(example).reduce(add)).toEqual(142);
-
-    expect(part1(await fetchInput(1)).reduce(add)).toBe(55108);
-  });
-
-  test("**", async () => {
-    const example = `
+    const example2 = `
 two1nine
 eightwothree
 abcone2threexyz
@@ -88,12 +88,15 @@ xtwone3four
 zoneight234
 7pqrstsixteen`;
 
-    const part2 = mapLines(calibrationValue(matchWordDigit));
+    expect(calibrationValues(matchWordDigit)(example2)).toEqual([
+      29, 83, 13, 24, 42, 14, 76,
+    ]);
 
-    expect(part2(example)).toEqual([29, 83, 13, 24, 42, 14, 76]);
-    expect(part2(example).reduce(add)).toEqual(281);
+    const input = await fetchInput(1);
 
-    expect(part2(await fetchInput(1)).reduce(add)).toBe(56324);
+    expect(calibrationValues(matchDigit)(input).reduce(add)).toBe(55108);
+
+    expect(calibrationValues(matchWordDigit)(input).reduce(add)).toBe(56324);
   });
 });
 
@@ -157,28 +160,42 @@ Game 5: 6 red, 1 blue, 3 green; 2 blue, 1 red, 2 green`;
 });
 
 describe("Day 3", () => {
-  const partNumbers = (lines: string[]) => {
-    const numbers = lines.flatMap((line, lineIndex) =>
-      [...line.matchAll(/\d+/g)].map((match) => {
+  const parseEngine = overLines((lines: string[]) => {
+    const partNumbers: number[] = [];
+
+    const gearPartsDict: Record<`${number}:${number}`, number[]> = {};
+    const gearParts = (i: number, p: number) =>
+      (gearPartsDict[`${i}:${p}`] ??= []);
+
+    const symbolRe = /[^\d\.]/;
+
+    lines.forEach((line, lineIndex) =>
+      [...line.matchAll(/\d+/g)].forEach((match) => {
         const { 0: numberString, index: begin } = match;
+        const number = parseInt(numberString);
         const end = begin + numberString.length;
 
-        const clamp = (pos: number) => Math.max(0, Math.min(pos, line.length));
-        const adjacent = [-1, 0, 1]
-          .map((offset) => lines[lineIndex + offset] ?? "")
-          .map((l) => l.slice(clamp(begin - 1), clamp(end + 1)));
-
-        const isPartNumber = adjacent.some((l) => /[^\d\.]/g.test(l));
-        return {
-          number: parseInt(numberString),
-          isPartNumber,
-        };
+        let isPartNumber = false;
+        for (
+          let i = max(0, lineIndex - 1);
+          i <= min(lines.length - 1, lineIndex + 1);
+          i++
+        )
+          for (let p = max(0, begin - 1); p < min(line.length, end + 1); p++) {
+            const c = lines[i][p];
+            if (!isPartNumber && (isPartNumber ||= symbolRe.test(c)))
+              partNumbers.push(number);
+            if (c == "*") gearParts(i, p).push(number);
+          }
       })
     );
-    return numbers;
-  };
+    const gearsRatios = Object.values(gearPartsDict)
+      .filter((parts) => parts.length == 2)
+      .map(([a, b]) => a * b);
+    return { partNumbers, gearsRatios };
+  });
 
-  test("*", async () => {
+  test("**", async () => {
     const example = `
 467..114..
 ...*......
@@ -191,13 +208,14 @@ describe("Day 3", () => {
 ...$.*....
 .664.598..`;
 
-    const part1 = (text: string) =>
-      partNumbers(splitLines(text)).map((n) => (n.isPartNumber ? n.number : 0));
-    expect(part1(example)).toEqual([
-      467, 0, 35, 633, 617, 0, 592, 755, 664, 598,
-    ]);
-
     const input = await fetchInput(3);
-    expect(part1(input).reduce(add)).toEqual(544433);
+
+    expect(parseEngine(example).partNumbers).toEqual([
+      467, 35, 633, 617, 592, 755, 664, 598,
+    ]);
+    expect(parseEngine(input).partNumbers.reduce(add)).toEqual(544433);
+
+    expect(parseEngine(example).gearsRatios).toEqual([16345, 451490]);
+    expect(parseEngine(input).gearsRatios.reduce(add)).toEqual(76314915);
   });
 });
