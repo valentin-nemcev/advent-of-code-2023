@@ -95,7 +95,6 @@ zoneight234
     const input = await fetchInput(1);
 
     expect(calibrationValues(matchDigit)(input).reduce(add)).toBe(55108);
-
     expect(calibrationValues(matchWordDigit)(input).reduce(add)).toBe(56324);
   });
 });
@@ -117,7 +116,7 @@ describe("Day 2", () => {
     return [Number(idStr), roundsStr.split("; ").map(parseRound)] as const;
   };
 
-  const idIfPossible = (gameStr: string) => {
+  const possibleIds = mapLines((gameStr: string) => {
     const [id, rounds] = parseRounds(gameStr);
 
     for (const round of rounds)
@@ -125,16 +124,16 @@ describe("Day 2", () => {
         if ((round[color] ?? 0) > bag[color]) return 0;
 
     return id;
-  };
+  });
 
-  const minSetPower = (gameStr: string) => {
+  const minSetsPowers = mapLines((gameStr: string) => {
     const minSet = { red: 0, green: 0, blue: 0 };
     for (const round of parseRounds(gameStr)[1])
       for (const color of colors)
         minSet[color] = Math.max(minSet[color], round[color] ?? 0);
 
     return Object.values(minSet).reduce((a, b) => a * b);
-  };
+  });
 
   test("**", async () => {
     const example = `
@@ -144,18 +143,13 @@ Game 3: 8 green, 6 blue, 20 red; 5 blue, 4 red, 13 green; 5 green, 1 red
 Game 4: 1 green, 3 red, 6 blue; 3 green, 6 red; 3 green, 15 blue, 14 red
 Game 5: 6 red, 1 blue, 3 green; 2 blue, 1 red, 2 green`;
 
-    const part1 = mapLines(idIfPossible);
-    expect(part1(example)).toEqual([1, 2, 0, 0, 5]);
-    expect(part1(example).reduce(add)).toEqual(8);
-
     const input = await fetchInput(2);
-    expect(part1(input).reduce(add)).toEqual(2545);
 
-    const part2 = mapLines(minSetPower);
-    expect(part2(example)).toEqual([48, 12, 1560, 630, 36]);
-    expect(part2(example).reduce(add)).toEqual(2286);
+    expect(possibleIds(example)).toEqual([1, 2, 0, 0, 5]);
+    expect(possibleIds(input).reduce(add)).toEqual(2545);
 
-    expect(part2(input).reduce(add)).toEqual(78111);
+    expect(minSetsPowers(example)).toEqual([48, 12, 1560, 630, 36]);
+    expect(minSetsPowers(input).reduce(add)).toEqual(78111);
   });
 });
 
@@ -219,3 +213,60 @@ describe("Day 3", () => {
     expect(parseEngine(input).gearsRatios.reduce(add)).toEqual(76314915);
   });
 });
+
+describe("Day 4", () => {
+  const parseNumbers = (s: string) => s.match(/(\d+)/g)!.map(Number);
+  const parseCard = (s: string) => {
+    const [, winningStr, oursStr] = s.split(/:|\|/);
+    return [new Set(parseNumbers(winningStr)), parseNumbers(oursStr)] as const;
+  };
+  const processCards = overLines((cardsStr: string[]) => {
+    const matchCounts: number[] = [];
+    const instanceCounts: number[] = [];
+
+    cardsStr.forEach((cardStr, cardIndex) => {
+      const [winning, ours] = parseCard(cardStr);
+      const matches = ours.reduce((c, n) => c + Number(winning.has(n)), 0);
+
+      const copyingCards = matchCounts.reduce(
+        (result, c, i) => result + (i + c >= cardIndex ? instanceCounts[i] : 0),
+        1
+      );
+      instanceCounts.push(copyingCards);
+      matchCounts.push(matches);
+    });
+
+    return {
+      points: matchCounts.map((c) => c && 2 ** (c - 1)),
+      instances: instanceCounts,
+    };
+  });
+
+  test("**", async () => {
+    const example = `
+Card 1: 41 48 83 86 17 | 83 86  6 31 17  9 48 53
+Card 2: 13 32 20 16 61 | 61 30 68 82 17 32 24 19
+Card 3:  1 21 53 59 44 | 69 82 63 72 16 21 14  1
+Card 4: 41 92 73 84 69 | 59 84 76 51 58  5 54 83
+Card 5: 87 83 26 28 32 | 88 30 70 12 93 22 82 36
+Card 6: 31 18 13 56 72 | 74 77 10 23 35 67 36 11`;
+    const input = await fetchInput(4);
+
+    expect(processCards(example).points).toEqual([8, 2, 2, 1, 0, 0]);
+    expect(processCards(input).points.reduce(add)).toEqual(26346);
+
+    expect(processCards(example).instances).toEqual([1, 2, 4, 8, 14, 1]);
+    expect(processCards(input).instances.reduce(add)).toEqual(8467762);
+  });
+});
+
+/*
+describe("Day ", () => {
+  test("*", async () => {
+    const example = `
+  `;
+    const input = await fetchInput();
+  });
+});
+
+*/
