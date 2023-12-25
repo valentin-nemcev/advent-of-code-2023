@@ -98,26 +98,39 @@ describe("Day 2", () => {
   const bag = { red: 12, green: 13, blue: 14 };
   const colors = Object.keys(bag) as Array<keyof typeof bag>;
 
-  const idIfPossible = (line: string) => {
-    const parseColor = (colorStr: string): [string, number] => {
+  const parseRounds = (gameStr: string) => {
+    const parseColor = (colorStr: string) => {
       const [numStr, color] = colorStr.split(" ");
-      return [color, Number(numStr)];
+      return [color, Number(numStr)] as const;
     };
 
     const parseRound = (roundStr: string) =>
       Object.fromEntries(roundStr.split(", ").map(parseColor));
 
-    const [, idStr, roundsStr] = line.match(/game (\d+): (.*)/i)!;
-    const rounds = roundsStr.split("; ").map(parseRound);
+    const [, idStr, roundsStr] = gameStr.match(/game (\d+): (.*)/i)!;
+    return [Number(idStr), roundsStr.split("; ").map(parseRound)] as const;
+  };
+
+  const idIfPossible = (gameStr: string) => {
+    const [id, rounds] = parseRounds(gameStr);
 
     for (const round of rounds)
       for (const color of colors)
         if ((round[color] ?? 0) > bag[color]) return 0;
 
-    return Number(idStr);
+    return id;
   };
 
-  test("*", async () => {
+  const minSetPower = (gameStr: string) => {
+    const minSet = { red: 0, green: 0, blue: 0 };
+    for (const round of parseRounds(gameStr)[1])
+      for (const color of colors)
+        minSet[color] = Math.max(minSet[color], round[color] ?? 0);
+
+    return Object.values(minSet).reduce((a, b) => a * b);
+  };
+
+  test("**", async () => {
     const example = `
 Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green
 Game 2: 1 blue, 2 green; 3 green, 4 blue, 1 red; 1 green, 1 blue
@@ -125,10 +138,17 @@ Game 3: 8 green, 6 blue, 20 red; 5 blue, 4 red, 13 green; 5 green, 1 red
 Game 4: 1 green, 3 red, 6 blue; 3 green, 6 red; 3 green, 15 blue, 14 red
 Game 5: 6 red, 1 blue, 3 green; 2 blue, 1 red, 2 green`;
 
-    const perLine = (s: string) => splitLines(s).map(idIfPossible);
-    expect(perLine(example)).toEqual([1, 2, 0, 0, 5]);
-    expect(perLine(example).reduce(add)).toEqual(8);
+    const part1 = (s: string) => splitLines(s).map(idIfPossible);
+    expect(part1(example)).toEqual([1, 2, 0, 0, 5]);
+    expect(part1(example).reduce(add)).toEqual(8);
 
-    expect(perLine(await fetchInput(2)).reduce(add)).toEqual(0);
+    const input = await fetchInput(2);
+    expect(part1(input).reduce(add)).toEqual(2545);
+
+    const part2 = (s: string) => splitLines(s).map(minSetPower);
+    expect(part2(example)).toEqual([48, 12, 1560, 630, 36]);
+    expect(part2(example).reduce(add)).toEqual(2286);
+
+    expect(part2(input).reduce(add)).toEqual(78111);
   });
 });
