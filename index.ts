@@ -2,23 +2,16 @@ import { describe, expect, test } from "bun:test";
 
 describe("Day 1", () => {
   function calibrationValue(line: string) {
+    const matchDigit = (c: string) => ("1" <= c && c <= "9" ? Number(c) : 0);
+
     let left = 0;
-    for (let i = 0; i < line.length; i++) {
-      const char = line[i];
-      if ("1" <= char && char <= "9") {
-        left = Number(char);
-        break;
-      }
-    }
+    for (let i = 0; i < line.length; i++)
+      if ((left = matchDigit(line[i]) ?? left)) break;
 
     let right = 0;
-    for (let i = line.length - 1; i >= 0; i--) {
-      const char = line[i];
-      if ("1" <= char && char <= "9") {
-        right = Number(char);
-        break;
-      }
-    }
+    for (let i = line.length - 1; i >= 0; i--)
+      if ((right = matchDigit(line[i]) ?? right)) break;
+
     return left * 10 + right;
   }
 
