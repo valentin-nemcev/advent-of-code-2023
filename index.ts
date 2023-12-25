@@ -15,8 +15,9 @@ async function fetchInput(day: number) {
   );
   if (!response.ok) throw `${response.status}: ${await response.text()}`;
 
-  await Bun.write(file, response);
-  return file.text();
+  const input = await response.text();
+  await Bun.write(file, input);
+  return input;
 }
 
 const splitLines = (text: string): string[] => text.match(/(.+)/g)!;
@@ -152,5 +153,51 @@ Game 5: 6 red, 1 blue, 3 green; 2 blue, 1 red, 2 green`;
     expect(part2(example).reduce(add)).toEqual(2286);
 
     expect(part2(input).reduce(add)).toEqual(78111);
+  });
+});
+
+describe("Day 3", () => {
+  const partNumbers = (lines: string[]) => {
+    const numbers = lines.flatMap((line, lineIndex) =>
+      [...line.matchAll(/\d+/g)].map((match) => {
+        const { 0: numberString, index: begin } = match;
+        const end = begin + numberString.length;
+
+        const clamp = (pos: number) => Math.max(0, Math.min(pos, line.length));
+        const adjacent = [-1, 0, 1]
+          .map((offset) => lines[lineIndex + offset] ?? "")
+          .map((l) => l.slice(clamp(begin - 1), clamp(end + 1)));
+
+        const isPartNumber = adjacent.some((l) => /[^\d\.]/g.test(l));
+        return {
+          number: parseInt(numberString),
+          isPartNumber,
+        };
+      })
+    );
+    return numbers;
+  };
+
+  test("*", async () => {
+    const example = `
+467..114..
+...*......
+..35..633.
+......#...
+617*......
+.....+.58.
+..592.....
+......755.
+...$.*....
+.664.598..`;
+
+    const part1 = (text: string) =>
+      partNumbers(splitLines(text)).map((n) => (n.isPartNumber ? n.number : 0));
+    expect(part1(example)).toEqual([
+      467, 0, 35, 633, 617, 0, 592, 755, 664, 598,
+    ]);
+
+    const input = await fetchInput(3);
+    expect(part1(input).reduce(add)).toEqual(544433);
   });
 });
