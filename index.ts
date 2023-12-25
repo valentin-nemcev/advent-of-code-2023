@@ -19,7 +19,11 @@ async function fetchInput(day: number) {
   return file.text();
 }
 
-const splitLines = (s: string): string[] => s.match(/(.+)/g)!;
+const splitLines = (text: string): string[] => text.match(/(.+)/g)!;
+const mapLines =
+  <R>(fn: (line: string, index: number) => R) =>
+  (text: string) =>
+    splitLines(text).map(fn);
 
 const add = (a: number, b: number) => a + b;
 
@@ -65,13 +69,12 @@ pqr3stu8vwx
 a1b2c3d4e5f
 treb7uchet`;
 
-    const perLine = (s: string) =>
-      splitLines(s).map(calibrationValue(matchDigit));
+    const part1 = mapLines(calibrationValue(matchDigit));
 
-    expect(perLine(example)).toEqual([12, 38, 15, 77]);
-    expect(perLine(example).reduce(add)).toEqual(142);
+    expect(part1(example)).toEqual([12, 38, 15, 77]);
+    expect(part1(example).reduce(add)).toEqual(142);
 
-    expect(perLine(await fetchInput(1)).reduce(add)).toBe(55108);
+    expect(part1(await fetchInput(1)).reduce(add)).toBe(55108);
   });
 
   test("**", async () => {
@@ -84,13 +87,12 @@ xtwone3four
 zoneight234
 7pqrstsixteen`;
 
-    const perLine = (s: string) =>
-      splitLines(s).map(calibrationValue(matchWordDigit));
+    const part2 = mapLines(calibrationValue(matchWordDigit));
 
-    expect(perLine(example)).toEqual([29, 83, 13, 24, 42, 14, 76]);
-    expect(perLine(example).reduce(add)).toEqual(281);
+    expect(part2(example)).toEqual([29, 83, 13, 24, 42, 14, 76]);
+    expect(part2(example).reduce(add)).toEqual(281);
 
-    expect(perLine(await fetchInput(1)).reduce(add)).toBe(56324);
+    expect(part2(await fetchInput(1)).reduce(add)).toBe(56324);
   });
 });
 
@@ -138,14 +140,14 @@ Game 3: 8 green, 6 blue, 20 red; 5 blue, 4 red, 13 green; 5 green, 1 red
 Game 4: 1 green, 3 red, 6 blue; 3 green, 6 red; 3 green, 15 blue, 14 red
 Game 5: 6 red, 1 blue, 3 green; 2 blue, 1 red, 2 green`;
 
-    const part1 = (s: string) => splitLines(s).map(idIfPossible);
+    const part1 = mapLines(idIfPossible);
     expect(part1(example)).toEqual([1, 2, 0, 0, 5]);
     expect(part1(example).reduce(add)).toEqual(8);
 
     const input = await fetchInput(2);
     expect(part1(input).reduce(add)).toEqual(2545);
 
-    const part2 = (s: string) => splitLines(s).map(minSetPower);
+    const part2 = mapLines(minSetPower);
     expect(part2(example)).toEqual([48, 12, 1560, 630, 36]);
     expect(part2(example).reduce(add)).toEqual(2286);
 
