@@ -20,7 +20,7 @@ async function fetchInput(day: number) {
   return input;
 }
 
-const splitLines = (text: string): string[] => text.match(/(.+)/g)!;
+const splitLines = (text: string): string[] => text.trim().split("\n");
 const mapLines =
   <R>(fn: (line: string, index: number) => R) =>
   (text: string) =>
@@ -260,12 +260,134 @@ Card 6: 31 18 13 56 72 | 74 77 10 23 35 67 36 11`;
   });
 });
 
+describe("Day 5", () => {
+  const mapSeeds = overLines((lines) => {
+    const [seedsLine, ...mapLines] = lines;
+    const seeds = seedsLine.match(/\d+/g)!.map(Number);
+
+    let currentMap: Array<{ begin: number; end: number; offset: number }>;
+    const maps: Array<typeof currentMap> = [];
+    for (const mapLine of mapLines) {
+      if (mapLine == "") continue;
+      if (mapLine.endsWith("map:")) {
+        maps.push((currentMap = []));
+        continue;
+      }
+      const [destBegin, begin, length] = mapLine.match(/\d+/g)!.map(Number);
+      currentMap!.push({
+        begin,
+        end: begin + length,
+        offset: destBegin - begin,
+      });
+    }
+    const single = seeds.map((s) =>
+      maps.reduce(
+        (s, ranges) =>
+          s +
+          (ranges.find(({ begin, end }) => begin <= s && s < end)?.offset ?? 0),
+        s
+      )
+    );
+
+    const seedRanges: Array<[begin: number, end: number]> = [];
+    for (let i = 0; i < seeds.length; i += 2) {
+      const [begin, length] = seeds.slice(i, i + 2);
+      seedRanges.push([begin, begin + length]);
+    }
+
+    const ranges = maps.reduce((srcRanges, map) => {
+      const dstRanges: typeof srcRanges = [];
+
+      srcRange: while (srcRanges.length) {
+        const [srcBegin, srcEnd] = srcRanges.pop()!;
+        mapRange: for (const { begin: mapBegin, end: mapEnd, offset } of map) {
+          if (srcEnd <= mapBegin || srcBegin >= mapEnd) continue mapRange;
+
+          if (srcBegin < mapBegin) {
+            srcRanges.push([srcBegin, mapBegin], [mapBegin, srcEnd]);
+            continue srcRange;
+          }
+
+          if (srcEnd > mapEnd) {
+            srcRanges.push([srcBegin, mapEnd], [mapEnd, srcEnd]);
+            continue srcRange;
+          }
+
+          dstRanges.push([srcBegin + offset, srcEnd + offset]);
+          continue srcRange;
+        }
+        dstRanges.push([srcBegin, srcEnd]);
+      }
+      return dstRanges;
+    }, seedRanges);
+
+    return { single, ranges };
+  });
+
+  test("**", async () => {
+    const example = `
+seeds: 79 14 55 13
+
+seed-to-soil map:
+50 98 2
+52 50 48
+
+soil-to-fertilizer map:
+0 15 37
+37 52 2
+39 0 15
+
+fertilizer-to-water map:
+49 53 8
+0 11 42
+42 0 7
+57 7 4
+
+water-to-light map:
+88 18 7
+18 25 70
+
+light-to-temperature map:
+45 77 23
+81 45 19
+68 64 13
+
+temperature-to-humidity map:
+0 69 1
+1 0 69
+
+humidity-to-location map:
+60 56 37
+56 93 4`;
+
+    const input = await fetchInput(5);
+
+    expect(mapSeeds(example).single).toEqual([82, 43, 86, 35]);
+    expect(min(...mapSeeds(input).single)).toEqual(111627841);
+
+    expect(mapSeeds(example).ranges).toEqual([
+      [97, 99],
+      [56, 60],
+      [94, 97],
+      [86, 90],
+      [60, 61],
+      [46, 56],
+      [82, 85],
+    ]);
+
+    expect(min(...mapSeeds(input).ranges.map((r) => r[0]))).toEqual(69323688);
+  });
+});
+
 /*
 describe("Day ", () => {
   test("*", async () => {
     const example = `
-  `;
+`;
     const input = await fetchInput();
+
+    expect(solution(example)).toEqual([]);
+    expect(solution(input).reduce(add)).toEqual(0);
   });
 });
 
