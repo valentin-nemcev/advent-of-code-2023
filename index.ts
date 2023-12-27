@@ -499,6 +499,68 @@ QQQJA 483`;
   });
 });
 
+describe("Day 8", () => {
+  const gcd = (a: number, b: number) => {
+    if (a < b) [a, b] = [b, a];
+    while (b > 0) [a, b] = [b, a % b];
+    return a;
+  };
+
+  const countSteps = overLines(
+    ([directionLine, , ...mapLines]: string[], amGhost?: "amGhost") => {
+      const directions = directionLine.split("").map((d) => Number(d == "R"));
+
+      const map = new Map<string, [string, string]>();
+      mapLines.forEach((l) => {
+        const [node, left, right] = l.match(/[0-9A-Z]{3}/g)!;
+        map.set(node, [left, right]);
+      });
+      let nodes = [...map.keys()].filter((n) =>
+        amGhost ? n.endsWith("A") : n == "AAA"
+      );
+
+      const steps = nodes.map((node) => {
+        let step = 0;
+        while (!node.endsWith("Z")) {
+          const dir = directions[step++ % directions.length];
+          node = map.get(node)![dir];
+        }
+        return step;
+      });
+      const stepsGcd = steps.reduce(gcd);
+      return steps.reduce((r, s) => r * (s / stepsGcd), stepsGcd);
+    }
+  );
+
+  test("**", async () => {
+    const example1 = `
+LLR
+
+AAA = (BBB, BBB)
+BBB = (AAA, ZZZ)
+ZZZ = (ZZZ, ZZZ)`;
+    const input = await fetchInput(8);
+
+    expect(countSteps(example1)).toEqual(6);
+    expect(countSteps(input)).toEqual(21883);
+
+    const example2 = `
+LR
+
+11A = (11B, XXX)
+11B = (XXX, 11Z)
+11Z = (11B, XXX)
+22A = (22B, XXX)
+22B = (22C, 22C)
+22C = (22Z, 22Z)
+22Z = (22B, 22B)
+XXX = (XXX, XXX)`;
+
+    expect(countSteps(example2, "amGhost")).toEqual(6);
+    expect(countSteps(input, "amGhost")).toEqual(12833235391111);
+  });
+});
+
 /*
 describe("Day ", () => {
   test("*", async () => {
