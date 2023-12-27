@@ -32,7 +32,8 @@ const overLines =
     fn(splitLines(text));
 
 const add = (a: number, b: number) => a + b;
-const { min, max } = Math;
+const multiply = (a: number, b: number) => a * b;
+const { min, max, floor, ceil } = Math;
 
 describe("Day 1", () => {
   const digitWords = [
@@ -376,6 +377,45 @@ humidity-to-location map:
     ]);
 
     expect(min(...mapSeeds(input).ranges.map((r) => r[0]))).toEqual(69323688);
+  });
+});
+
+describe("Day 6", () => {
+  const recordTimes = overLines(([timeLine, distanceLine]: string[]) => {
+    const times = timeLine.match(/\d+/g)!.map(Number);
+    const distances = distanceLine.match(/\d+/g)!.map(Number);
+
+    const timeMerged = Number(timeLine.match(/\d+/g)!.join(""));
+    const distanceMerged = Number(distanceLine.match(/\d+/g)!.join(""));
+
+    const solveTimes = (time: number, distance: number) => {
+      // distance == x * (time - x);
+      // 0 == x * x - time * x + distance;
+
+      const [x1, x2] = [-1, 1].map(
+        (s) => (time + s * Math.sqrt(time ** 2 - 4 * (distance + 0))) / 2
+      );
+      return ceil(x2) - floor(x1) - 1;
+    };
+
+    return {
+      separate: times.map((time, i) => solveTimes(time, distances[i])),
+      merged: solveTimes(timeMerged, distanceMerged),
+    };
+  });
+
+  test("**", async () => {
+    const example = `
+Time:      7  15   30
+Distance:  9  40  200`;
+
+    const input = await fetchInput(6);
+
+    expect(recordTimes(example).separate).toEqual([4, 8, 9]);
+    expect(recordTimes(input).separate.reduce(multiply)).toEqual(608902);
+
+    expect(recordTimes(example).merged).toEqual(71503);
+    expect(recordTimes(input).merged).toEqual(46173809);
   });
 });
 
