@@ -27,12 +27,15 @@ const mapLines =
     splitLines(text).map(fn);
 
 const overLines =
-  <R>(fn: (lines: string[]) => R) =>
-  (text: string) =>
-    fn(splitLines(text));
+  <R, Args extends unknown[]>(fn: (lines: string[], ...args: Args) => R) =>
+  (text: string, ...args: Args) =>
+    fn(splitLines(text), ...args);
 
 const add = (a: number, b: number) => a + b;
 const multiply = (a: number, b: number) => a * b;
+
+const compareNumber = (a: number, b: number) => a - b;
+
 const { min, max, floor, ceil } = Math;
 
 describe("Day 1", () => {
@@ -416,6 +419,83 @@ Distance:  9  40  200`;
 
     expect(recordTimes(example).merged).toEqual(71503);
     expect(recordTimes(input).merged).toEqual(46173809);
+  });
+});
+
+describe("Day 7", () => {
+  const cardTypes = [
+    "A",
+    "K",
+    "Q",
+    "J",
+    "T",
+    "9",
+    "8",
+    "7",
+    "6",
+    "5",
+    "4",
+    "3",
+    "2",
+    "*",
+  ].reverse();
+  const cardRanks = Object.fromEntries(cardTypes.map((c, i) => [c, i]));
+
+  const rankedBids = overLines((lines: string[], withJoker?: "withJoker") => {
+    const handStrength = (hand: string[]) => {
+      const cards: Record<string, number> = {};
+      hand.forEach((c) => (cards[c] = (cards[c] ?? 0) + 1));
+      const jokerCount = cards["*"] ?? 0;
+      cards["*"] = 0;
+
+      let [first, second] = Object.values(cards).sort((a, b) => b - a);
+      first += jokerCount;
+      if (first == 5) return 7;
+      if (first == 4) return 6;
+      if (first == 3 && second == 2) return 5;
+      if (first == 3) return 4;
+      if (first == 2 && second == 2) return 3;
+      if (first == 2) return 2;
+      if (first == 1) return 1;
+      return 0;
+    };
+
+    const hands = lines.map((l) => {
+      let [handStr, bidStr] = l.split(" ");
+      if (withJoker) handStr = handStr.replaceAll("J", "*");
+      const hand = handStr.split("");
+      const rank = [
+        handStrength(hand),
+        ...hand.map((c) => cardRanks[c]),
+      ].reverse();
+      const rankPacked = rank.reduce((r, x, i) => r | (x << (i * 4)), 0);
+
+      return [rankPacked, Number(bidStr)] as const;
+    });
+
+    return hands.sort(([a], [b]) => a - b).map((h) => h[1]);
+  });
+
+  test("**", async () => {
+    const example = `
+32T3K 765
+T55J5 684
+KK677 28
+KTJJT 220
+QQQJA 483`;
+    const input = await fetchInput(7);
+
+    expect(rankedBids(example)).toEqual([765, 220, 28, 684, 483]);
+    const handWinning = (r: number, bid: number, i: number): number =>
+      r + bid * (i + 1);
+    expect(rankedBids(example).reduce(handWinning)).toEqual(6440);
+    expect(rankedBids(input).reduce(handWinning)).toEqual(248217452);
+
+    expect(rankedBids(example, "withJoker")).toEqual([765, 28, 684, 483, 220]);
+    expect(rankedBids(example, "withJoker").reduce(handWinning)).toEqual(5905);
+    expect(rankedBids(input, "withJoker").reduce(handWinning)).toEqual(
+      245576185
+    );
   });
 });
 
