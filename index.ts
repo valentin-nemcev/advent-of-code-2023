@@ -27,14 +27,12 @@ const mapLines =
     splitLines(text).map(fn);
 
 const overLines =
-  <R, Args extends unknown[]>(fn: (lines: string[], ...args: Args) => R) =>
-  (text: string, ...args: Args) =>
-    fn(splitLines(text), ...args);
+  <R>(fn: (lines: string[]) => R) =>
+  (text: string) =>
+    fn(splitLines(text));
 
 const add = (a: number, b: number) => a + b;
 const multiply = (a: number, b: number) => a * b;
-
-const compareNumber = (a: number, b: number) => a - b;
 
 const { min, max, floor, ceil } = Math;
 
@@ -384,27 +382,28 @@ humidity-to-location map:
 });
 
 describe("Day 6", () => {
-  const recordTimes = overLines(([timeLine, distanceLine]: string[]) => {
+  const solveTimes = (time: number, distance: number) => {
+    // distance == x * (time - x);
+    // 0 == x * x - time * x + distance;
+
+    const [x1, x2] = [-1, 1].map(
+      (s) => (time + s * Math.sqrt(time ** 2 - 4 * (distance + 0))) / 2
+    );
+    return ceil(x2) - floor(x1) - 1;
+  };
+
+  const combinationsByLine = overLines(([timeLine, distanceLine]: string[]) => {
     const times = timeLine.match(/\d+/g)!.map(Number);
     const distances = distanceLine.match(/\d+/g)!.map(Number);
 
+    return times.map((time, i) => solveTimes(time, distances[i]));
+  });
+
+  const combinationsMerged = overLines(([timeLine, distanceLine]: string[]) => {
     const timeMerged = Number(timeLine.match(/\d+/g)!.join(""));
     const distanceMerged = Number(distanceLine.match(/\d+/g)!.join(""));
 
-    const solveTimes = (time: number, distance: number) => {
-      // distance == x * (time - x);
-      // 0 == x * x - time * x + distance;
-
-      const [x1, x2] = [-1, 1].map(
-        (s) => (time + s * Math.sqrt(time ** 2 - 4 * (distance + 0))) / 2
-      );
-      return ceil(x2) - floor(x1) - 1;
-    };
-
-    return {
-      separate: times.map((time, i) => solveTimes(time, distances[i])),
-      merged: solveTimes(timeMerged, distanceMerged),
-    };
+    return solveTimes(timeMerged, distanceMerged);
   });
 
   test("**", async () => {
@@ -414,11 +413,11 @@ Distance:  9  40  200`;
 
     const input = await fetchInput(6);
 
-    expect(recordTimes(example).separate).toEqual([4, 8, 9]);
-    expect(recordTimes(input).separate.reduce(multiply)).toEqual(608902);
+    expect(combinationsByLine(example)).toEqual([4, 8, 9]);
+    expect(combinationsByLine(input).reduce(multiply)).toEqual(608902);
 
-    expect(recordTimes(example).merged).toEqual(71503);
-    expect(recordTimes(input).merged).toEqual(46173809);
+    expect(combinationsMerged(input)).toEqual(46173809);
+    expect(combinationsMerged(example)).toEqual(71503);
   });
 });
 
@@ -441,40 +440,41 @@ describe("Day 7", () => {
   ].reverse();
   const cardRanks = Object.fromEntries(cardTypes.map((c, i) => [c, i]));
 
-  const rankedBids = overLines((lines: string[], withJoker?: "withJoker") => {
-    const handStrength = (hand: string[]) => {
-      const cards: Record<string, number> = {};
-      hand.forEach((c) => (cards[c] = (cards[c] ?? 0) + 1));
-      const jokerCount = cards["*"] ?? 0;
-      cards["*"] = 0;
+  const rankedBids = (withJoker?: "withJoker") =>
+    overLines((lines: string[]) => {
+      const handStrength = (hand: string[]) => {
+        const cards: Record<string, number> = {};
+        hand.forEach((c) => (cards[c] = (cards[c] ?? 0) + 1));
+        const jokerCount = cards["*"] ?? 0;
+        cards["*"] = 0;
 
-      let [first, second] = Object.values(cards).sort((a, b) => b - a);
-      first += jokerCount;
-      if (first == 5) return 7;
-      if (first == 4) return 6;
-      if (first == 3 && second == 2) return 5;
-      if (first == 3) return 4;
-      if (first == 2 && second == 2) return 3;
-      if (first == 2) return 2;
-      if (first == 1) return 1;
-      return 0;
-    };
+        let [first, second] = Object.values(cards).sort((a, b) => b - a);
+        first += jokerCount;
+        if (first == 5) return 7;
+        if (first == 4) return 6;
+        if (first == 3 && second == 2) return 5;
+        if (first == 3) return 4;
+        if (first == 2 && second == 2) return 3;
+        if (first == 2) return 2;
+        if (first == 1) return 1;
+        return 0;
+      };
 
-    const hands = lines.map((l) => {
-      let [handStr, bidStr] = l.split(" ");
-      if (withJoker) handStr = handStr.replaceAll("J", "*");
-      const hand = handStr.split("");
-      const rank = [
-        handStrength(hand),
-        ...hand.map((c) => cardRanks[c]),
-      ].reverse();
-      const rankPacked = rank.reduce((r, x, i) => r | (x << (i * 4)), 0);
+      const hands = lines.map((l) => {
+        let [handStr, bidStr] = l.split(" ");
+        if (withJoker) handStr = handStr.replaceAll("J", "*");
+        const hand = handStr.split("");
+        const rank = [
+          handStrength(hand),
+          ...hand.map((c) => cardRanks[c]),
+        ].reverse();
+        const rankPacked = rank.reduce((r, x, i) => r | (x << (i * 4)), 0);
 
-      return [rankPacked, Number(bidStr)] as const;
+        return [rankPacked, Number(bidStr)] as const;
+      });
+
+      return hands.sort(([a], [b]) => a - b).map((h) => h[1]);
     });
-
-    return hands.sort(([a], [b]) => a - b).map((h) => h[1]);
-  });
 
   test("**", async () => {
     const example = `
@@ -485,15 +485,15 @@ KTJJT 220
 QQQJA 483`;
     const input = await fetchInput(7);
 
-    expect(rankedBids(example)).toEqual([765, 220, 28, 684, 483]);
+    expect(rankedBids()(example)).toEqual([765, 220, 28, 684, 483]);
     const handWinning = (r: number, bid: number, i: number): number =>
       r + bid * (i + 1);
-    expect(rankedBids(example).reduce(handWinning)).toEqual(6440);
-    expect(rankedBids(input).reduce(handWinning)).toEqual(248217452);
+    expect(rankedBids()(example).reduce(handWinning)).toEqual(6440);
+    expect(rankedBids()(input).reduce(handWinning)).toEqual(248217452);
 
-    expect(rankedBids(example, "withJoker")).toEqual([765, 28, 684, 483, 220]);
-    expect(rankedBids(example, "withJoker").reduce(handWinning)).toEqual(5905);
-    expect(rankedBids(input, "withJoker").reduce(handWinning)).toEqual(
+    expect(rankedBids("withJoker")(example)).toEqual([765, 28, 684, 483, 220]);
+    expect(rankedBids("withJoker")(example).reduce(handWinning)).toEqual(5905);
+    expect(rankedBids("withJoker")(input).reduce(handWinning)).toEqual(
       245576185
     );
   });
@@ -506,8 +506,8 @@ describe("Day 8", () => {
     return a;
   };
 
-  const countSteps = overLines(
-    ([directionLine, , ...mapLines]: string[], amGhost?: "amGhost") => {
+  const countSteps = (amGhost?: "amGhost") =>
+    overLines(([directionLine, , ...mapLines]: string[]) => {
       const directions = directionLine.split("").map((d) => Number(d == "R"));
 
       const map = new Map<string, [string, string]>();
@@ -529,8 +529,7 @@ describe("Day 8", () => {
       });
       const stepsGcd = steps.reduce(gcd);
       return steps.reduce((r, s) => r * (s / stepsGcd), stepsGcd);
-    }
-  );
+    });
 
   test("**", async () => {
     const example1 = `
@@ -541,8 +540,8 @@ BBB = (AAA, ZZZ)
 ZZZ = (ZZZ, ZZZ)`;
     const input = await fetchInput(8);
 
-    expect(countSteps(example1)).toEqual(6);
-    expect(countSteps(input)).toEqual(21883);
+    expect(countSteps()(example1)).toEqual(6);
+    expect(countSteps()(input)).toEqual(21883);
 
     const example2 = `
 LR
@@ -556,8 +555,8 @@ LR
 22Z = (22B, 22B)
 XXX = (XXX, XXX)`;
 
-    expect(countSteps(example2, "amGhost")).toEqual(6);
-    expect(countSteps(input, "amGhost")).toEqual(12833235391111);
+    expect(countSteps("amGhost")(example2)).toEqual(6);
+    expect(countSteps("amGhost")(input)).toEqual(12833235391111);
   });
 });
 
