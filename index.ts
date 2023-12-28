@@ -561,6 +561,62 @@ XXX = (XXX, XXX)`;
   });
 });
 
+describe("Day 9", () => {
+  const extrapolate = (dir: "forward" | "backward") =>
+    mapLines((seqStr: string) => {
+      const sequences = [seqStr.split(" ").map(Number)];
+
+      for (let i = 0; i < sequences[0].length; i++)
+        for (let seqN = 1; seqN <= i; seqN++) {
+          const deriv = (sequences[seqN] ??= []);
+          const derivI = i - seqN;
+
+          const base = sequences[seqN - 1];
+          const baseI = derivI + 1;
+
+          deriv[derivI] = base[baseI] - base[baseI - 1];
+        }
+
+      if (dir == "forward") {
+        const targetLength = sequences[0].length + 1;
+        for (let i = sequences.length; i < targetLength; i++)
+          for (let seqN = sequences.length - 2; seqN >= 0; seqN--) {
+            const base = sequences[seqN];
+            const baseI = i - seqN;
+
+            const deriv = sequences[seqN + 1];
+            const derivI = baseI - 1;
+
+            deriv[derivI] ??= deriv[derivI - 1] ?? 0;
+
+            base[baseI] = base[baseI - 1] + deriv[derivI];
+          }
+
+        return sequences[0][sequences[0].length - 1];
+      } else {
+        let baseValue = 0;
+        for (let seqN = sequences.length - 2; seqN >= 0; seqN--)
+          baseValue = sequences[seqN][0] - baseValue;
+        return baseValue;
+      }
+    });
+
+  test("**", async () => {
+    const example = `
+0 3 6 9 12 15
+1 3 6 10 15 21
+10 13 16 21 30 45
+2 2 2 15 80 277 753 1775 3836 7847 15459 29588 55294 101364 183419 330383 598182`;
+    const input = await fetchInput(9);
+
+    expect(extrapolate("forward")(example)).toEqual([18, 28, 68, 1098304]);
+    expect(extrapolate("forward")(input).reduce(add)).toEqual(1934898178);
+
+    expect(extrapolate("backward")(example)).toEqual([-3, 0, 5, 3]);
+    expect(extrapolate("backward")(input).reduce(add)).toEqual(1129);
+  });
+});
+
 /*
 describe("Day ", () => {
   test("*", async () => {
