@@ -616,6 +616,65 @@ describe("Day 9", () => {
   });
 });
 
+describe("Day 10", () => {
+  type Direction = "up" | "down" | "left" | "right";
+  const directions: Record<
+    Direction,
+    { d: [number, number]; pipes: Record<string, Direction> }
+  > = {
+    up: { d: [-1, 0], pipes: { "|": "up", "7": "left", F: "right" } },
+    down: { d: [1, 0], pipes: { "|": "down", J: "left", L: "right" } },
+    left: { d: [0, -1], pipes: { "-": "left", L: "up", F: "down" } },
+    right: { d: [0, 1], pipes: { "-": "right", J: "up", "7": "down" } },
+  };
+  const loopLength = overLines((lines: string[]) => {
+    const pipes = lines.map((l) => l.split(""));
+
+    let [startRow, startCol] = [0, 0];
+
+    outer: while (startRow++ < pipes.length)
+      for (startCol = 0; startCol < pipes[startRow].length; startCol++)
+        if (pipes[startRow][startCol] == "S") break outer;
+
+    let [row, col] = [startRow, startCol];
+    let distance = 0;
+    let direction: Direction | undefined;
+    const distanceLimit = pipes[0].length * pipes.length;
+    outer: while (distance++ < distanceLimit) {
+      const dirs = direction
+        ? [directions[direction]]
+        : Object.values(directions);
+      for (const dir of dirs) {
+        const [r, c] = [row + dir.d[0], col + dir.d[1]];
+        if (pipes[r][c] == "S") return distance / 2;
+        const nextDir = dir.pipes[pipes[r][c]];
+        if (!nextDir) continue;
+        [row, col] = [r, c];
+        direction = nextDir;
+        pipes[row][col] = String(distance % 10);
+        // console.log(pipes.map((r) => r.join("")).join("\n") + "\n");
+        continue outer;
+      }
+      throw "stuck";
+    }
+    while (startRow != row || startCol != col);
+    throw "lost";
+  });
+
+  test("*", async () => {
+    const example = `
+7-F7-
+.FJ|7
+SJLL7
+|F--J
+LJ.LJ`;
+    const input = await fetchInput(10);
+
+    expect(loopLength(example)).toEqual(8);
+    expect(loopLength(input)).toEqual(6701);
+  });
+});
+
 /*
 describe("Day ", () => {
   test("*", async () => {
