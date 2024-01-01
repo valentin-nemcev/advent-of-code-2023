@@ -36,7 +36,7 @@ const multiply = (a: number, b: number) => a * b;
 
 const { min, max, floor, ceil } = Math;
 
-describe("Day 1", () => {
+describe("Day 01", () => {
   const digitWords = [
     "one",
     "two",
@@ -101,7 +101,7 @@ zoneight234
   });
 });
 
-describe("Day 2", () => {
+describe("Day 02", () => {
   const bag = { red: 12, green: 13, blue: 14 };
   const colors = Object.keys(bag) as Array<keyof typeof bag>;
 
@@ -155,7 +155,7 @@ Game 5: 6 red, 1 blue, 3 green; 2 blue, 1 red, 2 green`;
   });
 });
 
-describe("Day 3", () => {
+describe("Day 03", () => {
   const parseEngine = overLines((lines: string[]) => {
     const partNumbers: number[] = [];
 
@@ -216,7 +216,7 @@ describe("Day 3", () => {
   });
 });
 
-describe("Day 4", () => {
+describe("Day 04", () => {
   const parseNumbers = (s: string) => s.match(/(\d+)/g)!.map(Number);
   const parseCard = (s: string) => {
     const [, winningStr, oursStr] = s.split(/:|\|/);
@@ -262,7 +262,7 @@ Card 6: 31 18 13 56 72 | 74 77 10 23 35 67 36 11`;
   });
 });
 
-describe("Day 5", () => {
+describe("Day 05", () => {
   const mapSeeds = overLines((lines) => {
     const [seedsLine, ...mapLines] = lines;
     const seeds = seedsLine.match(/\d+/g)!.map(Number);
@@ -381,7 +381,7 @@ humidity-to-location map:
   });
 });
 
-describe("Day 6", () => {
+describe("Day 06", () => {
   const solveTimes = (time: number, distance: number) => {
     // distance == x * (time - x);
     // 0 == x * x - time * x + distance;
@@ -421,7 +421,7 @@ Distance:  9  40  200`;
   });
 });
 
-describe("Day 7", () => {
+describe("Day 07", () => {
   const cardTypes = [
     "A",
     "K",
@@ -499,7 +499,7 @@ QQQJA 483`;
   });
 });
 
-describe("Day 8", () => {
+describe("Day 08", () => {
   const gcd = (a: number, b: number) => {
     if (a < b) [a, b] = [b, a];
     while (b > 0) [a, b] = [b, a % b];
@@ -560,7 +560,7 @@ XXX = (XXX, XXX)`;
   });
 });
 
-describe("Day 9", () => {
+describe("Day 09", () => {
   const extrapolate = (dir: "forward" | "backward") =>
     mapLines((seqStr: string) => {
       const sequences = [seqStr.split(" ").map(Number)];
@@ -618,15 +618,36 @@ describe("Day 9", () => {
 
 describe("Day 10", () => {
   type Direction = "up" | "down" | "left" | "right";
-  const directions: Record<
-    Direction,
-    { d: [number, number]; pipes: Record<string, Direction> }
-  > = {
-    up: { d: [-1, 0], pipes: { "|": "up", "7": "left", F: "right" } },
-    down: { d: [1, 0], pipes: { "|": "down", J: "left", L: "right" } },
-    left: { d: [0, -1], pipes: { "-": "left", L: "up", F: "down" } },
-    right: { d: [0, 1], pipes: { "-": "right", J: "up", "7": "down" } },
+  type Move = {
+    rowShift: number;
+    colShift: number;
+    nextDirs: Record<string, Direction>;
   };
+  const moves: Record<Direction, Move> = {
+    up: {
+      rowShift: -1,
+      colShift: 0,
+      nextDirs: { "|": "up", "7": "left", F: "right" },
+    },
+    down: {
+      rowShift: 1,
+      colShift: 0,
+      nextDirs: { "|": "down", J: "left", L: "right" },
+    },
+    left: {
+      rowShift: 0,
+      colShift: -1,
+      nextDirs: { "-": "left", L: "up", F: "down" },
+    },
+    right: {
+      rowShift: 0,
+      colShift: 1,
+      nextDirs: { "-": "right", J: "up", "7": "down" },
+    },
+  };
+
+  const allDirs = Object.keys(moves) as Array<Direction>;
+
   const loopLength = overLines((lines: string[]) => {
     const pipes = lines.map((l) => l.split(""));
 
@@ -636,42 +657,105 @@ describe("Day 10", () => {
       for (startCol = 0; startCol < pipes[startRow].length; startCol++)
         if (pipes[startRow][startCol] == "S") break outer;
 
-    let [row, col] = [startRow, startCol];
     let distance = 0;
-    let direction: Direction | undefined;
     const distanceLimit = pipes[0].length * pipes.length;
-    outer: while (distance++ < distanceLimit) {
-      const dirs = direction
-        ? [directions[direction]]
-        : Object.values(directions);
-      for (const dir of dirs) {
-        const [r, c] = [row + dir.d[0], col + dir.d[1]];
-        if (pipes[r][c] == "S") return distance / 2;
-        const nextDir = dir.pipes[pipes[r][c]];
-        if (!nextDir) continue;
-        [row, col] = [r, c];
-        direction = nextDir;
-        pipes[row][col] = String(distance % 10);
-        // console.log(pipes.map((r) => r.join("")).join("\n") + "\n");
-        continue outer;
+
+    let [row, col] = [startRow, startCol];
+    let dir: Direction | undefined;
+
+    for (const nextDir of allDirs) {
+      const move = moves[nextDir];
+      const [nextRow, nextCol] = [row + move.rowShift, col + move.colShift];
+      const nextTile = pipes[nextRow][nextCol];
+      if (nextTile in move.nextDirs) {
+        dir = nextDir;
+        break;
       }
-      throw "stuck";
     }
-    while (startRow != row || startCol != col);
-    throw "lost";
+
+    if (!dir) throw "no start dir";
+
+    while (true) {
+      const move: Move = moves[dir];
+
+      const [nextRow, nextCol] = [row + move.rowShift, col + move.colShift];
+      const nextTile = pipes[nextRow][nextCol];
+      const nextDir = move.nextDirs[nextTile];
+
+      if (dir == "up" || dir == "down")
+        pipes[row][col] = pipes[nextRow][nextCol] = dir[0];
+      else if (dir == nextDir) pipes[nextRow][nextCol] = "h";
+
+      [row, col] = [nextRow, nextCol];
+      dir = nextDir;
+      distance++;
+      // pipes[row][col] = String(distance % 10);
+
+      if (row == startRow && col == startCol) break;
+      if (!dir) throw "stuck";
+      if (distance > distanceLimit) throw "lost";
+    }
+
+    let area = 0;
+    let isInside = false;
+    let side: "u" | "d" | undefined;
+    for (let row = 0; row < pipes.length; row++)
+      for (let col = 0; col < pipes[row].length; col++) {
+        const tile = pipes[row][col];
+        if (tile == "u" || tile == "d") {
+          if (tile != side) {
+            side = tile;
+            isInside = !isInside;
+          }
+        } else if (tile != "h") {
+          pipes[row][col] = isInside ? "I" : "O";
+          area += Number(isInside);
+        }
+      }
+
+    // console.log("\n" + pipes.map((r) => r.join("")).join("\n") + "\n");
+
+    return { distance: distance / 2, area };
   });
 
-  test("*", async () => {
-    const example = `
+  test("**", async () => {
+    const example1 = `
 7-F7-
 .FJ|7
 SJLL7
 |F--J
 LJ.LJ`;
-    const input = await fetchInput(10);
 
-    expect(loopLength(example)).toEqual(8);
-    expect(loopLength(input)).toEqual(6701);
+    const example2 = `
+..........
+.S------7.
+.|F----7|.
+.||....||.
+.||....||.
+.|L-7F-J|.
+.|..||..|.
+.L--JL--J.
+..........`;
+
+    const example3 = `
+ .F----7F7F7F7F-7....
+.|F--7||||||||FJ....
+.||.FJ||||||||L7....
+FJL7L7LJLJ||LJ.L-7..
+L--J.L7...LJS7F-7L7.
+....F-J..F7FJ|L7L7L7
+....L7.F7||L7|.L7L7|
+.....|FJLJ|FJ|F7|.LJ
+....FJL-7.||.||||...
+....L---J.LJ.LJLJ...`;
+
+    expect(loopLength(example1).distance).toEqual(8);
+    expect(loopLength(example2).area).toEqual(4);
+    expect(loopLength(example3).area).toEqual(8);
+
+    const input = await fetchInput(10);
+    expect(loopLength(input).distance).toEqual(6701);
+    expect(loopLength(input).area).toEqual(303);
   });
 });
 
